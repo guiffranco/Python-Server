@@ -9,13 +9,13 @@ port = 7000
 
 server_buff_size = 8
 
-print("Escolha entre\n1 - Digitar sua própria mensagem\n2 - Ler uma mensagem a partir de um arquivo externo")
+print("Choose between\n1 - Type your own msg\n2 - Read a file")
 op = input()
 if(op == "1"):
-    print("Digite uma mensagem para enviar ao servidor:")
+    print("Type your msg. I'll send it to serv:")
     msg = input()
 elif(op == "2"):
-    print("Digite o nome do arquivo:")
+    print("Type your file name so I can read it:")
     file_name = input()
     file = open(file_name+".txt", "r")
     msg = file.read()
