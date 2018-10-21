@@ -20,7 +20,9 @@ FLAGS_ACK = 1<<4
 MSS = 1460
 
 TESTAR_PERDA_ENVIO = False
+HANDSHAKE_DONE = False
 
+Unacked_Segments = []
 
 class Conexao:
     def __init__(self, id_conexao, seq_no, ack_no):
@@ -130,11 +132,18 @@ def raw_recv(fd):
                   (src_addr, src_port))
 
         conexao.seq_no += 1
+        Unacked_Segments.append(conexao.seq_no)
 
-        asyncio.get_event_loop().call_later(.1, send_next, fd, conexao)
     elif id_conexao in conexoes:
+        if ack_no in Unacked_Segments:
+            global HANDSHAKE_DONE
+            if not HANDSHAKE_DONE:
+                HANDSHAKE_DONE = True
+                return
+        Unacked_Segments.remove(ack_no)
         conexao = conexoes[id_conexao]
         conexao.ack_no += len(payload)
+        send_next(fd, conexao)
     else:
         print('%s:%d -> %s:%d (pacote associado a conexão desconhecida)' %
             (src_addr, src_port, dst_addr, dst_port))
