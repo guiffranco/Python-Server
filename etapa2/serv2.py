@@ -20,9 +20,6 @@ FLAGS_ACK = 1<<4
 MSS = 1460
 
 TESTAR_PERDA_ENVIO = False
-HANDSHAKE_DONE = False
-
-Unacked_Segments = []
 
 class Conexao:
     def __init__(self, id_conexao, seq_no, ack_no):
@@ -30,6 +27,9 @@ class Conexao:
         self.seq_no = seq_no
         self.ack_no = ack_no
         self.send_queue = b"HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\n" + 1000000 * b"hello pombo\n"
+        self.unacked_segments = []
+        self.handshake_done = False
+        self.closing_connection = False
 conexoes = {}
 
 
@@ -100,6 +100,7 @@ def send_next(fd, conexao):
                           conexao.ack_no, (5<<12)|FLAGS_FIN|FLAGS_ACK,
                           0, 0, 0)
         segment = fix_checksum(segment, src_addr, dst_addr)
+        conexao.closing_connection = True
         fd.sendto(segment, (dst_addr, dst_port))
     else:
         asyncio.get_event_loop().call_later(.001, send_next, fd, conexao)
@@ -132,16 +133,18 @@ def raw_recv(fd):
                   (src_addr, src_port))
 
         conexao.seq_no += 1
-        Unacked_Segments.append(conexao.seq_no)
+        conexao.unacked_segments.append(conexao.seq_no)
 
     elif id_conexao in conexoes:
-        if ack_no in Unacked_Segments:
-            global HANDSHAKE_DONE
-            if not HANDSHAKE_DONE:
-                HANDSHAKE_DONE = True
-                return
-        Unacked_Segments.remove(ack_no)
         conexao = conexoes[id_conexao]
+        if ack_no in conexao.unacked_segments:
+            if not conexao.handshake_done:
+                conexao.handshake_done = True
+                return
+            if conexao.closing_connection and len(conexao.unacked_segments)==1:
+                del conexoes[id_conexao]
+                
+        conexao.unacked_segments.remove(ack_no)
         conexao.ack_no += len(payload)
         send_next(fd, conexao)
     else:
