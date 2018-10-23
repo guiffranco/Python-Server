@@ -93,6 +93,7 @@ def send_next(fd, conexao):
     segment = fix_checksum(segment, src_addr, dst_addr)
 
     if not TESTAR_PERDA_ENVIO or random.random() < 0.95:
+        conexao.unacked_segments.append(conexao.seq_no)
         fd.sendto(segment, (dst_addr, dst_port))
 
     if conexao.send_queue == b"":
@@ -101,6 +102,7 @@ def send_next(fd, conexao):
                           0, 0, 0)
         segment = fix_checksum(segment, src_addr, dst_addr)
         conexao.closing_connection = True
+        conexao.unacked_segments.append(conexao.seq_no+1)
         fd.sendto(segment, (dst_addr, dst_port))
     else:
         asyncio.get_event_loop().call_later(.001, send_next, fd, conexao)
@@ -143,6 +145,7 @@ def raw_recv(fd):
                 return
             if conexao.closing_connection and len(conexao.unacked_segments)==1:
                 del conexoes[id_conexao]
+                return
                 
         conexao.unacked_segments.remove(ack_no)
         conexao.ack_no += len(payload)
