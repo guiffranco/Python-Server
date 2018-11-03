@@ -18,6 +18,9 @@ FLAGS_RST = 1<<2
 FLAGS_ACK = 1<<4
 
 MSS = 1460
+WINDOW_SIZE = 4
+
+INITIAL_SEQ = 0
 
 TESTAR_PERDA_ENVIO = False
 
@@ -25,9 +28,12 @@ class Conexao:
     def __init__(self, id_conexao, seq_no, ack_no):
         self.id_conexao = id_conexao
         self.seq_no = seq_no
+        global INITIAL_SEQ
+        INITIAL_SEQ = seq_no
         self.ack_no = ack_no
         self.send_queue = b"HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\n" + 1000000 * b"hello pombo\n"
         self.unacked_segments = []
+        self.window_size = 0
         self.handshake_done = False
         self.closing_connection = False
 conexoes = {}
@@ -79,8 +85,9 @@ def fix_checksum(segment, src_addr, dst_addr):
 
 
 def send_next(fd, conexao):
-    payload = conexao.send_queue[:MSS]
-    conexao.send_queue = conexao.send_queue[MSS:]
+    initial_point = (conexao.seq_no - INITIAL_SEQ) - 1
+    final_point = initial_point + MSS
+    payload = conexao.send_queue[initial_point:final_point]
 
     (dst_addr, dst_port, src_addr, src_port) = conexao.id_conexao
 
@@ -96,7 +103,7 @@ def send_next(fd, conexao):
         conexao.unacked_segments.append(conexao.seq_no)
         fd.sendto(segment, (dst_addr, dst_port))
 
-    if conexao.send_queue == b"":
+    if conexao.send_queue[final_point:] == b"":
         segment = struct.pack('!HHIIHHHH', src_port, dst_port, conexao.seq_no,
                           conexao.ack_no, (5<<12)|FLAGS_FIN|FLAGS_ACK,
                           0, 0, 0)
@@ -104,7 +111,7 @@ def send_next(fd, conexao):
         conexao.closing_connection = True
         conexao.unacked_segments.append(conexao.seq_no+1)
         fd.sendto(segment, (dst_addr, dst_port))
-    else:
+    elif conexao.window_size<=4:
         asyncio.get_event_loop().call_later(.001, send_next, fd, conexao)
 
 
@@ -135,21 +142,22 @@ def raw_recv(fd):
                   (src_addr, src_port))
 
         conexao.seq_no += 1
+        conexao.window_size = 1
         conexao.unacked_segments.append(conexao.seq_no)
 
     elif id_conexao in conexoes:
         conexao = conexoes[id_conexao]
-        if ack_no in conexao.unacked_segments:
+        if ack_no == conexao.unacked_segments[0]:
             if not conexao.handshake_done:
                 conexao.handshake_done = True
                 return
             if conexao.closing_connection and len(conexao.unacked_segments)==1:
                 del conexoes[id_conexao]
                 return
-                
-        conexao.unacked_segments.remove(ack_no)
-        conexao.ack_no += len(payload)
-        send_next(fd, conexao)
+            conexao.window_size -= 1
+            conexao.unacked_segments.remove(ack_no)
+            conexao.ack_no += len(payload)
+            send_next(fd, conexao)
     else:
         print('%s:%d -> %s:%d (pacote associado a conexão desconhecida)' %
             (src_addr, src_port, dst_addr, dst_port))
