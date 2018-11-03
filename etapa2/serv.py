@@ -157,7 +157,7 @@ def raw_recv(fd):
             conexao.window_size -= 1
             conexao.unacked_segments.remove(ack_no)
             conexao.ack_no += len(payload)
-            send_next(fd, conexao)
+            asyncio.get_event_loop().call_later(.1, send_next, fd, conexao)
     else:
         print('%s:%d -> %s:%d (pacote associado a conexão desconhecida)' %
             (src_addr, src_port, dst_addr, dst_port))
