@@ -20,9 +20,8 @@ FLAGS_ACK = 1<<4
 MSS = 1460
 WINDOW_SIZE = 4
 
-INITIAL_SEQ = 0
 
-TESTAR_PERDA_ENVIO = False
+INITIAL_SEQ = 0
 
 class Conexao:
     def __init__(self, id_conexao, seq_no, ack_no):
@@ -38,6 +37,12 @@ class Conexao:
         self.closing_connection = False
 conexoes = {}
 
+
+def timeout(fd, conexao, seq_no, segment):
+    if seq_no in conexao.unacked_segments:
+        (dst_addr, dst_port) = conexao.id_conexao[0:2]
+        fd.sendto(segment, (dst_addr, dst_port))
+        asyncio.get_event_loop().call_later(5, timeout, fd, conexao, seq_no, segment)
 
 
 def addr2str(addr):
@@ -85,6 +90,7 @@ def fix_checksum(segment, src_addr, dst_addr):
 
 
 def send_next(fd, conexao):
+    global WINDOW_SIZE
     initial_point = (conexao.seq_no - INITIAL_SEQ) - 1
     final_point = initial_point + MSS
     payload = conexao.send_queue[initial_point:final_point]
@@ -95,13 +101,16 @@ def send_next(fd, conexao):
                           conexao.ack_no, (5<<12)|FLAGS_ACK,
                           1024, 0, 0) + payload
 
-    conexao.seq_no = (conexao.seq_no + len(payload)) & 0xffffffff
+   
 
     segment = fix_checksum(segment, src_addr, dst_addr)
 
-    if not TESTAR_PERDA_ENVIO or random.random() < 0.95:
-        conexao.unacked_segments.append(conexao.seq_no)
-        fd.sendto(segment, (dst_addr, dst_port))
+    
+    fd.sendto(segment, (dst_addr, dst_port))
+    asyncio.get_event_loop().call_later(5, timeout, fd, conexao, conexao.seq_no, segment)
+    conexao.seq_no = (conexao.seq_no + len(payload)) & 0xffffffff
+    conexao.unacked_segments.append(conexao.seq_no)
+    
 
     if conexao.send_queue[final_point:] == b"":
         segment = struct.pack('!HHIIHHHH', src_port, dst_port, conexao.seq_no,
@@ -111,7 +120,7 @@ def send_next(fd, conexao):
         conexao.closing_connection = True
         conexao.unacked_segments.append(conexao.seq_no+1)
         fd.sendto(segment, (dst_addr, dst_port))
-    elif conexao.window_size<=4:
+    elif conexao.window_size<=WINDOW_SIZE:
         asyncio.get_event_loop().call_later(.001, send_next, fd, conexao)
 
 
