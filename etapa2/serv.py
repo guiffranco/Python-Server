@@ -18,8 +18,8 @@ FLAGS_RST = 1<<2
 FLAGS_ACK = 1<<4
 
 MSS = 1460
-WINDOW_SIZE = 4
-
+WINDOW_SIZE = 100
+RTT = .001
 
 INITIAL_SEQ = 0
 
@@ -35,11 +35,16 @@ class Conexao:
         self.window_size = 0
         self.handshake_done = False
         self.closing_connection = False
+        self.seg_in_rtt = 1 # for slow start
+        self.seg_in_rtt_counter = 1
+        self.threshold_found =  False
 conexoes = {}
 
 
 def timeout(fd, conexao, seq_no, segment):
     if seq_no in conexao.unacked_segments:
+        conexao.seg_in_rtt = conexao.seg_in_rtt/2
+        conexao.threshold_found = True
         (dst_addr, dst_port) = conexao.id_conexao[0:2]
         fd.sendto(segment, (dst_addr, dst_port))
         asyncio.get_event_loop().call_later(5, timeout, fd, conexao, seq_no, segment)
@@ -90,7 +95,7 @@ def fix_checksum(segment, src_addr, dst_addr):
 
 
 def send_next(fd, conexao):
-    global WINDOW_SIZE
+    conexao.seg_in_rtt_counter -= 1
     initial_point = (conexao.seq_no - INITIAL_SEQ) - 1
     final_point = initial_point + MSS
     payload = conexao.send_queue[initial_point:final_point]
@@ -121,7 +126,11 @@ def send_next(fd, conexao):
         conexao.unacked_segments.append(conexao.seq_no+1)
         fd.sendto(segment, (dst_addr, dst_port))
     elif conexao.window_size<=WINDOW_SIZE:
-        asyncio.get_event_loop().call_later(.001, send_next, fd, conexao)
+        if conexao.seg_in_rtt_counter <= 0:
+            conexao.seg_in_rtt_counter = conexao.seg_in_rtt
+            asyncio.get_event_loop().call_later(RTT, send_next, fd, conexao)
+        else:
+            asyncio.get_event_loop().call_later(0.0000000001, send_next, fd, conexao)
 
 
 def raw_recv(fd):
@@ -164,8 +173,16 @@ def raw_recv(fd):
                 del conexoes[id_conexao]
                 return
             conexao.window_size -= 1
+            print(conexao.unacked_segments)
             conexao.unacked_segments.remove(ack_no)
+            print(conexao.unacked_segments)
             conexao.ack_no += len(payload)
+            
+            if conexao.seg_in_rtt_counter == 0:
+                if not conexao.threshold_found:
+                    conexao.seg_in_rtt *= 2 # grows exponentially
+                else:
+                    conexao.seg_in_rtt += 1 # grows linearly
             asyncio.get_event_loop().call_later(.1, send_next, fd, conexao)
     else:
         print('%s:%d -> %s:%d (pacote associado a conexão desconhecida)' %
