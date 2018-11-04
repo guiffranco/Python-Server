@@ -183,6 +183,7 @@ def raw_recv(fd):
                     conexao.seg_in_rtt *= 2 # grows exponentially
                 else:
                     conexao.seg_in_rtt += 1 # grows linearly
+            
             asyncio.get_event_loop().call_later(.1, send_next, fd, conexao)
     else:
         print('%s:%d -> %s:%d (pacote associado a conexão desconhecida)' %
