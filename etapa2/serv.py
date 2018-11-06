@@ -127,6 +127,10 @@ def send_next(fd, conexao):
         fd.sendto(segment, (dst_addr, dst_port))
     elif conexao.window_size<=WINDOW_SIZE:
         if conexao.seg_in_rtt_counter <= 0:
+            if not conexao.threshold_found:
+                conexao.seg_in_rtt *= 2 # grows exponentially
+            else:
+                conexao.seg_in_rtt += 1 # grows linearly
             conexao.seg_in_rtt_counter = conexao.seg_in_rtt
             asyncio.get_event_loop().call_later(RTT, send_next, fd, conexao)
         else:
@@ -176,13 +180,7 @@ def raw_recv(fd):
                 if unacked_object<=ack_no:
                     conexao.window_size -= 1
                     conexao.unacked_segments.remove(unacked_object)
-                    conexao.ack_no += len(payload)
-            
-                if conexao.seg_in_rtt_counter <= 0:
-                    if not conexao.threshold_found:
-                        conexao.seg_in_rtt *= 2 # grows exponentially
-                    else:
-                        conexao.seg_in_rtt += 1 # grows linearly
+                    conexao.ack_no += len(payload)                    
             asyncio.get_event_loop().call_later(.1, send_next, fd, conexao)
     else:
         print('%s:%d -> %s:%d (pacote associado a conexão desconhecida)' %
