@@ -27,7 +27,7 @@ O código do cliente permite que seja enviado um arquivo .txt. Para facilitar o 
 
 ## Etapa 2
 
-Para esta etapa foi implementado, sobre um [código](https://gist.github.com/thotypous/6b4bcff336e307e4a64622aa19d4b65c "HTTP burro") básico disponibilizado pelo professor Paulo Matias, características de um TCP, como os Handshakes inicial e final, transmissão correta de segmentos, retransmissão após timeout.
+Para esta etapa foi implementado, sobre um [código](https://gist.github.com/thotypous/6b4bcff336e307e4a64622aa19d4b65c "HTTP burro") básico disponibilizado pelo professor Paulo Matias, características de um TCP, como os Handshakes inicial e final, transmissão correta de segmentos, controle de congestionamento e retransmissão após timeout.
 
 Para rodar o script em um terminal:
 
