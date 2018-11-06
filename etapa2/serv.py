@@ -19,7 +19,7 @@ FLAGS_ACK = 1<<4
 
 MSS = 1460
 WINDOW_SIZE = 100
-RTT = .001
+RTT = .001 # sim, deveria ser calculado, mas tratado aqui como constante
 
 INITIAL_SEQ = 0
 
@@ -165,24 +165,24 @@ def raw_recv(fd):
 
     elif id_conexao in conexoes:
         conexao = conexoes[id_conexao]
-        if ack_no == conexao.unacked_segments[0]:
+        if ack_no >= conexao.unacked_segments[0]:
             if not conexao.handshake_done:
                 conexao.handshake_done = True
                 return
             if conexao.closing_connection and len(conexao.unacked_segments)==1:
                 del conexoes[id_conexao]
                 return
-            conexao.window_size -= 1
-            print(conexao.unacked_segments)
-            conexao.unacked_segments.remove(ack_no)
-            print(conexao.unacked_segments)
-            conexao.ack_no += len(payload)
+            for unacked_object in conexao.unacked_segments:
+                if unacked_object<=ack_no:
+                    conexao.window_size -= 1
+                    conexao.unacked_segments.remove(unacked_object)
+                    conexao.ack_no += len(payload)
             
-            if conexao.seg_in_rtt_counter == 0:
-                if not conexao.threshold_found:
-                    conexao.seg_in_rtt *= 2 # grows exponentially
-                else:
-                    conexao.seg_in_rtt += 1 # grows linearly
+                if conexao.seg_in_rtt_counter <= 0:
+                    if not conexao.threshold_found:
+                        conexao.seg_in_rtt *= 2 # grows exponentially
+                    else:
+                        conexao.seg_in_rtt += 1 # grows linearly
             asyncio.get_event_loop().call_later(.1, send_next, fd, conexao)
     else:
         print('%s:%d -> %s:%d (pacote associado a conexão desconhecida)' %
