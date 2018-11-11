@@ -32,3 +32,21 @@ Nesse caso, a dica é fazer testes plugando a sua implementação de TCP a uma i
 Caso você tenha optado por alguma plataforma que não tenha suporte nativo a sockets, continue seguindo as mesmas orientações que foram dadas para a etapa anterior.
 
 Sim, esta etapa é a mais complexa do projeto, por isso mesmo foram alocadas duas aulas para desenvolvimento e tira-dúvidas!
+
+# Etapa 3
+
+O objetivo desta etapa é trabalhar um pouco com a camada de rede. Felizmente a implementação da camada de rede em um host costuma ser bastante simples, pois geralmente ele está conectado a um único roteador, o que torna a questão do encaminhamento de pacotes (que é a tarefa mais complexa atribuída à camada de rede) um problema trivial.
+
+Nesta etapa, vamos exercitar duas tarefas relacionadas à camada rede:
+
+- Interpretação de cabeçalhos IP.
+
+- Reconstrução de datagramas IP fragmentados.
+
+O [código de exemplo](https://gist.github.com/thotypous/660caaf197146bb4b99bc007a31b6119) fornecido para esta etapa gera pings com um grande payload destinados a um endereço definido na variável dest_addr. Uma sugestão para exercitar as tarefas acima é reconstruir a resposta ao ping que chegar de volta. Preste atenção aos seguintes pontos:
+
+- O seu código deve conseguir funcionar mesmo que os fragmentos cheguem fora de ordem.
+
+- Você deve implementar um timeout para desistir de remontar datagramas cujos fragmentos estejam demorando muito para chegar (e provavelmente tenham sido perdidos).
+
+Mostre na tela informações sobre os datagramas remontados.

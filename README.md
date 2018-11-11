@@ -43,3 +43,7 @@ wget localhost:7000
 ```
 
 Gerando, ao fim, um arquivo index.html com a mensagem enviada ao cliente.
+
+## Etapa 3
+
+Para esta etapa foi implementado, sobre um [exemplo](https://gist.github.com/thotypous/660caaf197146bb4b99bc007a31b6119) disponibilizado pelo professor Paulo Matias, a interpretação de cabeçalho IP e a reconstrução de datagramas IP fragmentados (mesmo com os fragmentos chegando fora de ordem), assim como o timeout sobre esses datagramas (caso os fragmentos não se completem dentro de determinado tempo).
