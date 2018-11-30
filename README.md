@@ -62,3 +62,9 @@ Para rodar o script em um terminal:
     cd etapa3/
     python3 host.py
 ```
+
+## Etapa 4
+
+Para a etapa 4 foram verificados os MAC adresses e IPs da máquina pessoal e do router local. Então, modificou-se este código [exemplo](https://gist.github.com/thotypous/ed608128259e6b7d7b85b1a0139347f6) disponibilizado pelo professor Paulo Matias, para fazer verificação desses endereços no momento do recebimento do frame.
+
+Por fim, integrou-se o código resultante com o da etapa 3.
